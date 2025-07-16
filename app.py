@@ -7,10 +7,54 @@ from datetime import datetime
 st.title("🛏️ Room Occupancy Report Generator")
 
 # Upload
-uploaded_file = st.file_uploader("Upload the resort data Excel file (.csv format)", type=["csv"])
+uploaded_file = st.file_uploader("Upload the DAILY SALES Excel file (.xlsx)", type=["xlsx"])
 
 if uploaded_file:
-    df = pd.read_csv(uploaded_file)
+    st.info("📄 Processing Excel sheets...")
+
+    rates = pd.ExcelFile(uploaded_file)
+    all_data = []
+
+    for sheet_name in rates.sheet_names:
+        df_raw = rates.parse(sheet_name, header=None)
+
+        # Extract the date (3rd row, A column)
+        sheet_date = pd.to_datetime(df_raw.iloc[2, 0], errors='coerce')
+
+        # Combine row 4 and 5 headers
+        row_main = df_raw.iloc[3].fillna('').astype(str)
+        row_sub = df_raw.iloc[4].fillna('').astype(str)
+
+        combined_columns = []
+        for main, sub in zip(row_main, row_sub):
+            main = main.strip()
+            sub = sub.strip()
+            if not main and not sub:
+                combined_columns.append(None)
+            else:
+                combined_columns.append(f"{main} ({sub})" if sub else main)
+
+        df_raw.columns = combined_columns
+        df_raw = df_raw.loc[:, df_raw.columns.notna()]
+        df_cleaned = df_raw.iloc[6:].reset_index(drop=True)
+
+        # Remove rows after 'Function Room'
+        particulars_col = next((col for col in df_cleaned.columns if 'Particulars' in str(col)), None)
+        if particulars_col:
+            stop_index = df_cleaned[df_cleaned[particulars_col] == 'Function Room'].index
+            if not stop_index.empty:
+                df_cleaned = df_cleaned.loc[:stop_index[0]]
+
+        df_cleaned["Date"] = sheet_date
+
+        cols = df_cleaned.columns.tolist()
+        cols = ['Date'] + [col for col in cols if col != 'Date']
+        df_cleaned = df_cleaned[cols]
+
+        all_data.append(df_cleaned)
+
+    df = pd.concat(all_data, ignore_index=True)
+
     df['Particulars'] = df['Particulars'].astype(str).str.strip()
     
     # Room mapping
