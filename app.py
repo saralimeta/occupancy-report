@@ -56,6 +56,7 @@ if uploaded_file:
     df = pd.concat(all_data, ignore_index=True)
 
     df['Particulars'] = df['Particulars'].astype(str).str.strip()
+    df['No. of Rooms'] = pd.to_numeric(df['No. of Rooms'], errors='coerce').fillna(0)
     
     # Room mapping
     room_mapping_data = [
