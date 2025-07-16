@@ -7,7 +7,7 @@ from datetime import datetime
 st.title("🛏️ Room Occupancy Report Generator")
 
 # Upload
-uploaded_file = st.file_uploader("Upload the combined resort data Excel file (.csv format)", type=["csv"])
+uploaded_file = st.file_uploader("Upload the resort data Excel file (.csv format)", type=["csv"])
 
 if uploaded_file:
     df = pd.read_csv(uploaded_file)
