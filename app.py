@@ -254,7 +254,8 @@ if uploaded_file:
             summary_sheet.write(row_num, 1, row_data[1], fmt)  # Room Group
             summary_sheet.write(row_num, 2, row_data[2], fmt)  # No. of Rooms
             summary_sheet.write(row_num, 3, row_data[3], fmt)  # Occupied
-            summary_sheet.write_number(row_num, 4, row_data[4] / 100, center_fmt_used)
+            percent_val = float(row_data[4].replace('%', '')) / 100 if isinstance(row_data[4], str) else row_data[4] / 100
+            summary_sheet.write_number(row_num, 4, percent_val, center_fmt_used)
             summary_sheet.write(row_num, 5, row_data[5], money_fmt_used)  # Total Amount
             summary_sheet.write(row_num, 6, "" if is_total else row_data[6], fmt)  # Rank
 
