@@ -160,6 +160,9 @@ if uploaded_file:
     ).reset_index()
 
     summary['Occupancy_Percentage'] = (summary['Occupied_Rooms'] / (summary['Total_Rooms'] * summary['Total_Days']) * 100).round(2)
+    summary['Total_Possible'] = summary['Total_Rooms'] * summary['Total_Days']
+    summary['Occupied_Display'] = summary['Occupied_Rooms'].astype(int).astype(str) + " out of " + summary['Total_Possible'].astype(int).astype(str)
+    summary['Occupancy_Display'] = summary['Occupancy_Percentage'].map(lambda x: f"{x:.2f}%")
     summary['Rank'] = summary['Occupancy_Percentage'].rank(ascending=False, method='min').astype(int)
 
     # 📊 Totals per Room Group
@@ -169,13 +172,23 @@ if uploaded_file:
         'Total_Amount': 'sum'
     }).reset_index()
 
-    group_totals['Occupancy_Percentage'] = (group_totals['Occupied_Rooms'] / (group_totals['Total_Rooms'] * summary['Total_Days'].max()) * 100).round(2)
+        # Totals per Room Group
+    group_totals = summary.groupby('Room Group').agg({
+        'Total_Rooms': 'sum',
+        'Occupied_Rooms': 'sum',
+        'Total_Possible': 'sum',
+        'Total_Amount': 'sum'
+    }).reset_index()
+    group_totals['Occupancy_Percentage'] = (group_totals['Occupied_Rooms'] / group_totals['Total_Possible'] * 100).round(2)
     group_totals['Room Type'] = 'TOTAL'
-    group_totals['Rank'] = 999  # temporary high rank to sort later
+    group_totals['Occupied_Display'] = group_totals['Occupied_Rooms'].astype(int).astype(str) + " out of " + group_totals['Total_Possible'].astype(int).astype(str)
+    group_totals['Occupancy_Display'] = group_totals['Occupancy_Percentage'].map(lambda x: f"{x:.2f}%")
+    group_totals['Rank'] = 999
+    # Combine final summary
     summary_final = pd.concat([
-        summary[['Room Type', 'Room Group', 'Total_Rooms', 'Occupied_Rooms', 'Occupancy_Percentage', 'Total_Amount', 'Rank']],
-        group_totals[['Room Type', 'Room Group', 'Total_Rooms', 'Occupied_Rooms', 'Occupancy_Percentage', 'Total_Amount', 'Rank']]
-    ], ignore_index=True)
+        summary[['Room Type', 'Room Group', 'Total_Rooms', 'Occupied_Display', 'Occupancy_Display', 'Total_Amount', 'Rank']],
+        group_totals[['Room Type', 'Room Group', 'Total_Rooms', 'Occupied_Display', 'Occupancy_Display', 'Total_Amount', 'Rank']]
+    ], ignore_index=True).sort_values(by='Rank').reset_index(drop=True)
 
     # Sort by Rank
     summary_final = summary_final.sort_values(by='Rank').reset_index(drop=True)
