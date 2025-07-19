@@ -199,17 +199,17 @@ if uploaded_file:
         highlight_center_fmt = workbook.add_format({'bold': True, 'bg_color': '#FFFF99', 'border': 1, 'align': 'center'})
 
         # 📝 Write Summary Sheet
-        summary_sheet = workbook.add_worksheet("Summary")
-        writer.sheets["Summary"] = summary_sheet
+    summary_sheet = workbook.add_worksheet("Summary")
+    writer.sheets["Summary"] = summary_sheet
 
         # 🧩 Add chart to the bottom of the Summary sheet
-        chart_row_start = len(summary_final) + 3  # leave 2 rows gap
+    chart_row_start = len(summary_final) + 3  # leave 2 rows gap
 
         # Create a bar chart
-        chart = workbook.add_chart({'type': 'bar'})  # horizontal
+    chart = workbook.add_chart({'type': 'bar'})  # horizontal
 
             # Add data series: Occupancy %
-        chart.add_series({
+    chart.add_series({
             'name':       'Occupancy %',
             'categories': ['Summary', 1, 0, len(summary_final)-1, 0],  # Room Type
             'values':     ['Summary', 1, 4, len(summary_final)-1, 4],  # Occupancy % (as number)
@@ -217,21 +217,21 @@ if uploaded_file:
             'fill':       {'color': '#4F81BD'},
         })
 
-        chart.set_title({'name': 'Room Type Occupancy %'})
-        chart.set_x_axis({'name': 'Occupancy %', 'num_format': '0%', 'major_gridlines': {'visible': False}})
-        chart.set_y_axis({'name': 'Room Type', 'reverse': True})  # To show from top to bottom
-        chart.set_legend({'none': True})
-        chart.set_size({'width': 800, 'height': 480})
+    chart.set_title({'name': 'Room Type Occupancy %'})
+    chart.set_x_axis({'name': 'Occupancy %', 'num_format': '0%', 'major_gridlines': {'visible': False}})
+    chart.set_y_axis({'name': 'Room Type', 'reverse': True})  # To show from top to bottom
+    chart.set_legend({'none': True})
+    chart.set_size({'width': 800, 'height': 480})
 
 
         # Insert chart
-        summary_sheet.insert_chart(chart_row_start, 0, chart)
+    summary_sheet.insert_chart(chart_row_start, 0, chart)
 
-        headers = ["Room Type", "Room Group", "No. of Rooms", "Occupied", "Occupancy %", "Total Amount", "Rank"]
-        for col_num, header in enumerate(headers):
-            summary_sheet.write(0, col_num, header, header_fmt)
+    headers = ["Room Type", "Room Group", "No. of Rooms", "Occupied", "Occupancy %", "Total Amount", "Rank"]
+    for col_num, header in enumerate(headers):
+        summary_sheet.write(0, col_num, header, header_fmt)
 
-        for row_num, row_data in enumerate(summary_final.itertuples(index=False), start=1):
+    for row_num, row_data in enumerate(summary_final.itertuples(index=False), start=1):
             is_total = row_data[0] == 'TOTAL'
             fmt = highlight_fmt if is_total else border_fmt
             money_fmt_used = highlight_money_fmt if is_total else money_fmt
@@ -245,12 +245,12 @@ if uploaded_file:
             summary_sheet.write(row_num, 5, row_data[5], money_fmt_used)  # Total Amount
             summary_sheet.write(row_num, 6, "" if is_total else row_data[6], fmt)  # Rank
 
-        summary_sheet.set_column(0, 1, 28)
-        summary_sheet.set_column(2, 3, 15)
-        summary_sheet.set_column(4, 6, 18)
+    summary_sheet.set_column(0, 1, 28)
+    summary_sheet.set_column(2, 3, 15)
+    summary_sheet.set_column(4, 6, 18)
 
-        writer.close()
-        output.seek(0)
+    writer.close()
+    output.seek(0)
 
-        st.success("✅ Report generated!")
-        st.download_button("📥 Download Excel Report", output, file_name="room_occupancy_report.xlsx")
+    st.success("✅ Report generated!")
+    st.download_button("📥 Download Excel Report", output, file_name="occupancy_report.xlsx")
