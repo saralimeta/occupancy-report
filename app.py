@@ -149,7 +149,105 @@ if uploaded_file:
                     for j, val in enumerate(row_data):
                         fmt = money_fmt if j == 4 and isinstance(val, (float, int)) else border_fmt
                         worksheet.write(row + 2 + k, base_col + j, val, fmt)
-            row += len(date_range) + 4
+            row += len(date_range) + 4  # space for rows + TOTAL + OCC %
+    
+        # 🔢 Create Summary Sheet
+    summary = df[df['Room Type'].notna()].groupby(['Room Type', 'Room Group']).agg(
+        Total_Rooms=('Particulars', 'nunique'),
+        Occupied_Rooms=('No. of Rooms', 'sum'),
+        Total_Amount=('Rooms Rates', 'sum'),
+        Total_Days=('Date', lambda x: (x.max() - x.min()).days + 1)
+    ).reset_index()
+
+    summary['Occupancy_Percentage'] = (summary['Occupied_Rooms'] / (summary['Total_Rooms'] * summary['Total_Days']) * 100).round(2)
+    summary['Rank'] = summary['Occupancy_Percentage'].rank(ascending=False, method='min').astype(int)
+
+    # 📊 Totals per Room Group
+    group_totals = summary.groupby('Room Group').agg({
+        'Total_Rooms': 'sum',
+        'Occupied_Rooms': 'sum',
+        'Total_Amount': 'sum'
+    }).reset_index()
+
+    group_totals['Occupancy_Percentage'] = (group_totals['Occupied_Rooms'] / (group_totals['Total_Rooms'] * summary['Total_Days'].max()) * 100).round(2)
+    group_totals['Room Type'] = 'TOTAL'
+    group_totals['Rank'] = 999  # temporary high rank to sort later
+    summary_final = pd.concat([
+        summary[['Room Type', 'Room Group', 'Total_Rooms', 'Occupied_Rooms', 'Occupancy_Percentage', 'Total_Amount', 'Rank']],
+        group_totals[['Room Type', 'Room Group', 'Total_Rooms', 'Occupied_Rooms', 'Occupancy_Percentage', 'Total_Amount', 'Rank']]
+    ], ignore_index=True)
+
+    # Sort by Rank
+summary_final = summary_final.sort_values(by='Rank').reset_index(drop=True)
+
+print("\n📊 Breakdown of Occupancy Percentage Computation:")
+for idx, row in summary.iterrows():
+    total_rooms = row['Total_Rooms']
+    total_days = row['Total_Days']
+    occupied = row['Occupied_Rooms']
+    available = total_rooms * total_days
+    print(f"🏨 {row['Room Type']} ({row['Room Group']})")
+    print(f"    Total Rooms      : {total_rooms}")
+    print(f"    Total Days       : {total_days}")
+    print(f"    Available Nights : {available}")
+    print(f"    Occupied Nights  : {occupied}")
+    print(f"    → Occupancy %    : ({occupied} / {available}) * 100 = {(occupied / available) * 100:.2f}%")
+    
+    # 🎨 Extra format for totals
+    highlight_fmt = workbook.add_format({'bold': True, 'bg_color': '#FFFF99', 'border': 1})
+    highlight_money_fmt = workbook.add_format({'bold': True, 'bg_color': '#FFFF99', 'border': 1, 'num_format': '"₱"#,##0.00'})
+    highlight_center_fmt = workbook.add_format({'bold': True, 'bg_color': '#FFFF99', 'border': 1, 'align': 'center'})
+
+    # 📝 Write Summary Sheet
+    summary_sheet = workbook.add_worksheet("Summary")
+    writer.sheets["Summary"] = summary_sheet
+
+    # 🧩 Add chart to the bottom of the Summary sheet
+    chart_row_start = len(summary_final) + 3  # leave 2 rows gap
+
+    # Create a bar chart
+    chart = workbook.add_chart({'type': 'bar'})  # horizontal
+
+        # Add data series: Occupancy %
+    chart.add_series({
+        'name':       'Occupancy %',
+        'categories': ['Summary', 1, 0, len(summary_final)-1, 0],  # Room Type
+        'values':     ['Summary', 1, 4, len(summary_final)-1, 4],  # Occupancy % (as number)
+        'data_labels': {'value': True, 'num_format': '0.0%'},
+        'fill':       {'color': '#4F81BD'},
+    })
+
+    chart.set_title({'name': 'Room Type Occupancy %'})
+    chart.set_x_axis({'name': 'Occupancy %', 'num_format': '0%', 'major_gridlines': {'visible': False}})
+    chart.set_y_axis({'name': 'Room Type', 'reverse': True})  # To show from top to bottom
+    chart.set_legend({'none': True})
+    chart.set_size({'width': 800, 'height': 480})
+
+
+    # Insert chart
+    summary_sheet.insert_chart(chart_row_start, 0, chart)
+
+    headers = ["Room Type", "Room Group", "No. of Rooms", "Occupied", "Occupancy %", "Total Amount", "Rank"]
+    for col_num, header in enumerate(headers):
+        summary_sheet.write(0, col_num, header, header_fmt)
+
+    for row_num, row_data in enumerate(summary_final.itertuples(index=False), start=1):
+        is_total = row_data[0] == 'TOTAL'
+        fmt = highlight_fmt if is_total else border_fmt
+        money_fmt_used = highlight_money_fmt if is_total else money_fmt
+        center_fmt_used = highlight_center_fmt if is_total else center_bold_fmt
+
+        summary_sheet.write(row_num, 0, row_data[0], fmt)  # Room Type
+        summary_sheet.write(row_num, 1, row_data[1], fmt)  # Room Group
+        summary_sheet.write(row_num, 2, row_data[2], fmt)  # No. of Rooms
+        summary_sheet.write(row_num, 3, row_data[3], fmt)  # Occupied
+        summary_sheet.write_number(row_num, 4, row_data[4] / 100, center_fmt_used)
+        summary_sheet.write(row_num, 5, row_data[5], money_fmt_used)  # Total Amount
+        summary_sheet.write(row_num, 6, "" if is_total else row_data[6], fmt)  # Rank
+
+    summary_sheet.set_column(0, 1, 28)
+    summary_sheet.set_column(2, 3, 15)
+    summary_sheet.set_column(4, 6, 18)
 
     writer.close()
     output.seek(0)
