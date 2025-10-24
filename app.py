@@ -53,6 +53,15 @@ if uploaded_file:
 
         all_data.append(df_cleaned)
 
+    # Filter to only essential columns before concatenation
+    essential_columns = ['Date', 'Particulars', 'No. of Rooms', 'Rooms Rates']
+
+    # Filter each DataFrame to only essential columns
+    for i, df in enumerate(all_data):
+        # Keep only columns that exist in the DataFrame
+        available_cols = [col for col in essential_columns if col in df.columns]
+        all_data[i] = df[available_cols]
+
     df = pd.concat(all_data, ignore_index=True)
 
     df['Particulars'] = df['Particulars'].astype(str).str.strip()
